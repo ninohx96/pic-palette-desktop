@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "pic-palette-desktop",
+  "productName": "holah-pic-palette",
   "version": "0.1.0",
-  "identifier": "Y",
+  "identifier": "holah-pic-palette-desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,13 +12,17 @@
   "app": {
     "windows": [
       {
-        "title": "pic-palette-desktop",
-        "width": 800,
-        "height": 600
+        "title": "holah-pic-palette",
+        "width": 880,
+        "height": 816
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**/holah-pic-palette-desktop/temp/**"]
+      }
     }
   },
   "bundle": {
