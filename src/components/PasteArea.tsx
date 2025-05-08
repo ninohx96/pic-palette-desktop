@@ -7,12 +7,11 @@ import { PicSvgIcon } from "./svgs";
 
 type PasteAreaProps = {
   onPaste: (event: ClipboardEvent) => void;
-  imagePath?: string;
   imageUrl?: string;
   isLoading?: boolean;
 };
 
-export function PasteArea({ onPaste, imagePath, imageUrl, isLoading = false }: PasteAreaProps) {
+export function PasteArea({ onPaste, imageUrl, isLoading = false }: PasteAreaProps) {
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLDivElement>(null);
 
@@ -72,11 +71,12 @@ export function PasteArea({ onPaste, imagePath, imageUrl, isLoading = false }: P
                       src={imageUrl}
                       alt="粘贴的图片"
                       className="max-h-10 object-contain group-hover:max-h-40 transition-all"
+                      onLoad={() => {
+                        console.log("done URL.revokeObjectURL");
+                        URL.revokeObjectURL(imageUrl);
+                      }}
                     />
                   </Flex>
-                  {imagePath && (
-                    <Text className="text-xs text-gray-300 text-right absolute bottom-0 right-0">{imagePath}</Text>
-                  )}
                 </Flex>
               )
             : (

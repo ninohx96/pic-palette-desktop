@@ -1,9 +1,8 @@
 import type { Vec3 } from "@vibrant/color";
 
 import { Box, Button, Card, Container, Flex, Heading, Text } from "@radix-ui/themes";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { Vibrant } from "node-vibrant/browser";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { TColCouple, TPaletteKey, TReplaceSymbol, TUserPreference } from "./types";
 
@@ -12,10 +11,6 @@ import { PasteArea } from "./components/PasteArea";
 import { SchemaTemplate } from "./components/SchemaTemplate";
 import { PicSvgIcon } from "./components/svgs";
 import { shouldUseLightText } from "./lib/utils";
-
-type ImagePath = {
-  path: string;
-};
 
 type PaletteColor = {
   hex: string;
@@ -51,7 +46,6 @@ function saveUserPreference(preference: TUserPreference): void {
 }
 
 function App() {
-  const [imagePath, setImagePath] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string>("");
   const [palette, setPalette] = useState<PaletteColor[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -90,31 +84,13 @@ function App() {
             throw new Error("无法获取图片数据");
           }
 
-          // 将图片转换为 Base64
-          const reader = new FileReader();
-          const imageDataPromise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-
-          const imageDataBase64 = await imageDataPromise;
-
-          // 调用 Rust 后端保存图片数据
-          const result = await invoke<ImagePath>("save_image_data", { imageDataBase64 });
-          const mutPath = convertFileSrc(result.path);
-          setImagePath(result.path);
-          // console.log("mutate file path:", mutPath);
-
-          // 使用 asset:// 协议
-          setImageUrl(mutPath);
-
-          // 提取调色板
-          await extractPalette(mutPath);
+          const theUrl = URL.createObjectURL(blob);
+          setImageUrl(theUrl);
+          await extractPalette(theUrl);
+          // URL.revokeObjectURL(theUrl); // >. 这里在 img.onload 之前即触发了
         }
         catch (err) {
           setError(`处理图片失败: ${err}`);
-          setImagePath("");
           setImageUrl("");
           setPalette([]);
         }
@@ -161,7 +137,7 @@ function App() {
       // console.warn("开始提取调色板，路径：", path);
 
       // 使用 node-vibrant 直接处理图片路径
-      const vibrant = new Vibrant(`${path}`, {
+      const vibrant = new Vibrant(path, {
         quality: 5, // 降低质量以提高性能
         colorCount: 64, // 增加颜色数量以获取更多可能的颜色
       });
@@ -238,22 +214,9 @@ function App() {
     }
   };
 
-  const cleanupImage = async () => {
-    if (imagePath) {
-      try {
-        await invoke("cleanup_temp_image", { path: imagePath });
-      }
-      catch (err) {
-        console.error(`清理临时图像失败: ${err}`);
-      }
-    }
-  };
-
   // 重置应用状态
   const handleReset = async () => {
     // console.warn("@handleReset");
-    await cleanupImage();
-    setImagePath("");
     setImageUrl("");
     setPalette([]);
     setError("");
@@ -269,19 +232,6 @@ function App() {
     });
   };
 
-  // 清空所有临时图片
-  const handleClearCache = async () => {
-    try {
-      // 调用后端函数清空所有临时图片
-      await invoke("clear_all_temp_images");
-      // 重置当前状态
-      handleReset();
-    }
-    catch (err) {
-      setError(`清空缓存失败: ${err}`);
-    }
-  };
-
   // 更新用户配色偏好
   const updateUserPreference = (lightSource: TPaletteKey, darkSource: TPaletteKey) => {
     // console.log("@updateUserPreference", lightSource, darkSource);
@@ -292,15 +242,6 @@ function App() {
     setUserPreference(newPreference);
     saveUserPreference(newPreference);
   };
-
-  // 不再需要全局粘贴事件监听，改为在 PasteArea 组件中处理
-
-  // 组件卸载时清理临时图像
-  useEffect(() => {
-    return () => {
-      cleanupImage();
-    };
-  }, [imagePath]);
 
   return (
     <Container className="p-4 max-w-5xl mx-auto min-h-screen">
@@ -320,7 +261,6 @@ function App() {
         <PasteArea
           onPaste={handlePaste}
           imageUrl={imageUrl}
-          imagePath={imagePath}
           isLoading={loading}
         />
 
@@ -330,7 +270,6 @@ function App() {
               <Flex justify="between" align="center" className="mb-4">
                 <Text className="text-sm text-gray-300">Click on the area above to upload an image again.</Text>
                 <Flex gap="2">
-                  <Button size="1" variant="soft" onClick={handleClearCache}>Clear Cache</Button>
                   <Button size="1" onClick={handleReset}>Reset</Button>
                 </Flex>
               </Flex>
